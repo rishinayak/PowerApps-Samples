@@ -108,8 +108,15 @@ export class ModelDrivenGrid implements ComponentFramework.StandardControl<IInpu
         const dataset = context.parameters.records;
         const paging = context.parameters.records.paging;
 
-        // In MDAs, the initial population of the dataset does not provide updatedProperties
-        const initialLoad = !this.sortedRecordsIds && dataset.sortedRecordIds;
+        // Check for initial load - no records loaded yet and not currently loading
+        const initialLoad = this.sortedRecordsIds.length === 0 && !dataset.loading;
+        
+        // If initial load and no data, trigger refresh to load data
+        if (initialLoad && (!dataset.sortedRecordIds || dataset.sortedRecordIds.length === 0)) {
+            dataset.refresh();
+            return; // Exit and wait for the refresh to trigger another updateView call
+        }
+
         const datasetChanged = context.updatedProperties.indexOf('dataset') > -1 || initialLoad;
         const resetPaging =
             datasetChanged && !dataset.loading && !dataset.paging.hasPreviousPage && this.currentPage !== 1;
@@ -125,6 +132,7 @@ export class ModelDrivenGrid implements ComponentFramework.StandardControl<IInpu
             this.currentPage = 1;
         }
 
+        // Update records whenever dataset changes, initial load, or in test harness
         if (resetPaging || datasetChanged || this.isTestHarness) {
             this.records = dataset.records;
             this.sortedRecordsIds = dataset.sortedRecordIds;
